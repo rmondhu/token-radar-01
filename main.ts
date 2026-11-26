@@ -19,12 +19,20 @@
 // parentProtocol exclusions are invisible in the snapshot) plus the top 60
 // no-token protocols below the floor by TVL, tier-labelled.
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-board.ts';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
+// In the grader the repo is mounted read-only at /bot and the sealed input is at
+// /input, with a writable /output. Read the snapshot from MAKEFUN_INPUT_DIR and
+// write every output to MAKEFUN_OUTPUT_DIR when they are set; locally (env unset)
+// fall back to the repo itself, so `node main.ts` still reproduces the committed files.
+const SNAPSHOT = process.env.MAKEFUN_INPUT_DIR
+  ? join(process.env.MAKEFUN_INPUT_DIR, 'snapshot.json')
+  : join(ROOT, 'input', 'snapshot.json');
+const OUT = process.env.MAKEFUN_OUTPUT_DIR ?? ROOT;
 const FLOOR_USD = 50000000;
 const FALLBACK_MULTIPLE = 0.082;
 
@@ -122,7 +130,7 @@ function farmPlan(p: Protocol): string {
 }
 
 function main(): void {
-  const snap = JSON.parse(readFileSync(join(ROOT, 'input', 'snapshot.json'), 'utf8')) as Snapshot;
+  const snap = JSON.parse(readFileSync(SNAPSHOT, 'utf8')) as Snapshot;
   const bySlug = new Map(snap.protocols.map((p) => [p.slug, p]));
 
   // Comparables: token-bearing protocols with a positive circulating mcap.
@@ -211,7 +219,7 @@ function main(): void {
     score: r.score,
     farm_plan: r.farm_plan,
   }));
-  writeFileSync(join(ROOT, 'board.json'), JSON.stringify(board));
+  writeFileSync(join(OUT, 'board.json'), JSON.stringify(board));
 
   // dashboard/data.js: the same rows, trimmed only for size — chains to the top 5
   // (chain_count keeps the true count). The derived display fields (growth and
@@ -239,11 +247,18 @@ function main(): void {
     floor_usd: snap.floor_usd,
     rows: dashRows,
   };
-  writeFileSync(join(ROOT, 'dashboard', 'data.js'), `window.TOKEN_RADAR = ${JSON.stringify(data)};\n`);
+  mkdirSync(join(OUT, 'dashboard'), { recursive: true });
+  writeFileSync(join(OUT, 'dashboard', 'data.js'), `window.TOKEN_RADAR = ${JSON.stringify(data)};\n`);
 
   // dossier.json: the scorer recomputes this byte-for-byte from dashboard/ and
-  // screenshots/, so call the kit library exactly as documented.
-  writeFileSync(join(ROOT, 'dossier.json'), buildDossier('.', { text_max_bytes: 65536 }));
+  // screenshots/, so call the kit library exactly as documented — on the output
+  // directory, which holds the generated data.js plus copies of the static files.
+  if (OUT !== ROOT) {
+    mkdirSync(join(OUT, 'screenshots'), { recursive: true });
+    for (const f of ['index.html', 'app.js', 'app.css']) copyFileSync(join(ROOT, 'dashboard', f), join(OUT, 'dashboard', f));
+    for (const f of ['1-board.png', '2-detail.png', '3-filtered.png']) copyFileSync(join(ROOT, 'screenshots', f), join(OUT, 'screenshots', f));
+  }
+  writeFileSync(join(OUT, 'dossier.json'), buildDossier(OUT, { text_max_bytes: 65536 }));
 
   console.log(`board: ${board.length} rows (${watchlist.length} watchlist + ${belowFloor.length} below floor)`);
   console.log(`top 5: ${board.slice(0, 5).map((r) => `#${r.rank} ${r.name} $${r.implied_mcap_usd.toLocaleString('en-US')} / score $${r.score.toLocaleString('en-US')}`).join(' | ')}`);
