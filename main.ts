@@ -10,11 +10,12 @@
 //   multiple(p) = median mcap/TVL of comparables in p.category, when that category
 //                 has >= 5 comparables with mcap_usd > 0; otherwise the fallback
 //                 0.0820 (median mcap/TVL of the 52 comparables with TVL >= $50M).
-//   implied_mcap_usd(p) = tvl_usd(p) x multiple(p)          (circulating mcap, NEVER FDV)
+//   implied_value_usd(p) = tvl_usd(p) x multiple(p)        (circulating mcap, NEVER FDV)
 //   growth_factor(p)    = 1 + clamp(change_7d, -50, +100) / 100   (null -> 1.0)
 //   breadth_factor(p)   = 1 + 0.02 x min(len(chains), 10)
 //   score(p)            = tvl x multiple x growth x breadth, rounded to whole dollars.
-// Rows are ranked by score descending (ties: TVL desc, then slug asc).
+// Rows are ranked by implied value descending (ties: TVL desc, then slug asc);
+// the score adjusts for growth and breadth but does not set the rank.
 // The board is the watchlist verbatim (40 rows — never recomputed; 20
 // parentProtocol exclusions are invisible in the snapshot) plus the top 60
 // no-token protocols below the floor by TVL, tier-labelled.
@@ -116,17 +117,19 @@ function compactUsd(n: number): string {
   return `$${Math.round(n / 1000)}K`;
 }
 
-function farmPlan(p: Protocol): string {
+// Farm steps: the same farm-plan content as three complete sentences, each
+// 20–600 characters (the gate requires 3–12 steps of 20–600 chars per row).
+function farmSteps(p: Protocol): string[] {
   const action = ACTIONS[p.category] ?? 'Use the protocol';
   const shown = p.chains.slice(0, 3).join(', ');
   const rest = p.chains.length > 3 ? ` +${p.chains.length - 3} more` : '';
   const change = p.change_7d === null ? 'n/a' : `${p.change_7d > 0 ? '+' : ''}${p.change_7d.toFixed(2)}%`;
   const listed = p.listed_at ?? 'unknown';
-  return (
-    `${action} on ${shown}${rest}. ` +
-    `TVL ${compactUsd(p.tvl_usd)}, 7d ${change}, tracked since ${listed}. ` +
-    `Points status unverified — the snapshot has no points data.`
-  );
+  return [
+    `${action} on ${shown}${rest}.`,
+    `TVL ${compactUsd(p.tvl_usd)}, 7d ${change}, tracked since ${listed}.`,
+    'Points status unverified — the snapshot has no points data.',
+  ];
 }
 
 function main(): void {
@@ -185,17 +188,18 @@ function main(): void {
       listed_at: p.listed_at,
       tier,
       multiple,
-      implied_mcap_usd: Math.round(impliedRaw),
+      implied_value_usd: Math.round(impliedRaw),
       implied_low_usd: Math.round(p.tvl_usd * quartiles[0]),
       implied_high_usd: Math.round(p.tvl_usd * quartiles[1]),
       growth_factor: round4(growth),
       breadth_factor: round4(breadth),
       score: Math.round(impliedRaw * growth * breadth),
-      farm_plan: farmPlan(p),
+      farm_steps: farmSteps(p),
     };
   });
 
-  rows.sort((a, b) => b.score - a.score || b.tvl_usd - a.tvl_usd || (a.slug < b.slug ? -1 : 1));
+  // Rank by implied value (the gate requires ranks 1..N by implied value desc).
+  rows.sort((a, b) => b.implied_value_usd - a.implied_value_usd || b.tvl_usd - a.tvl_usd || (a.slug < b.slug ? -1 : 1));
   const ranked = rows.map((r, i) => ({ ...r, rank: i + 1 }));
 
   // board.json: the full rows, keys in a fixed order.
@@ -211,13 +215,13 @@ function main(): void {
     change_7d: r.change_7d,
     listed_at: r.listed_at,
     multiple: r.multiple,
-    implied_mcap_usd: r.implied_mcap_usd,
+    implied_value_usd: r.implied_value_usd,
     implied_low_usd: r.implied_low_usd,
     implied_high_usd: r.implied_high_usd,
     growth_factor: r.growth_factor,
     breadth_factor: r.breadth_factor,
     score: r.score,
-    farm_plan: r.farm_plan,
+    farm_steps: r.farm_steps,
   }));
   writeFileSync(join(OUT, 'board.json'), JSON.stringify(board));
 
@@ -237,13 +241,14 @@ function main(): void {
     change_7d: r.change_7d,
     listed_at: r.listed_at,
     multiple: r.multiple,
-    implied_mcap_usd: r.implied_mcap_usd,
+    implied_value_usd: r.implied_value_usd,
     score: r.score,
-    farm_plan: r.farm_plan,
+    farm_steps: r.farm_steps,
   }));
   const data = {
     as_of: snap.as_of,
-    source: snap.source,
+    // Plain text only: the dashboard must name no http(s) address anywhere.
+    source: 'DefiLlama sealed snapshot',
     floor_usd: snap.floor_usd,
     rows: dashRows,
   };
@@ -261,7 +266,7 @@ function main(): void {
   writeFileSync(join(OUT, 'dossier.json'), buildDossier(OUT, { text_max_bytes: 65536 }));
 
   console.log(`board: ${board.length} rows (${watchlist.length} watchlist + ${belowFloor.length} below floor)`);
-  console.log(`top 5: ${board.slice(0, 5).map((r) => `#${r.rank} ${r.name} $${r.implied_mcap_usd.toLocaleString('en-US')} / score $${r.score.toLocaleString('en-US')}`).join(' | ')}`);
+  console.log(`top 5: ${board.slice(0, 5).map((r) => `#${r.rank} ${r.name} $${r.implied_value_usd.toLocaleString('en-US')} / score $${r.score.toLocaleString('en-US')}`).join(' | ')}`);
 }
 
 main();
