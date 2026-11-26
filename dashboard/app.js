@@ -43,7 +43,7 @@
   // ---- stats strip ----
   var watch = rows.filter(function (r) { return r.tier === 'watchlist'; });
   var watchTvl = watch.reduce(function (s, r) { return s + r.tvl_usd; }, 0);
-  var totalImplied = watch.reduce(function (s, r) { return s + r.implied_mcap_usd; }, 0);
+  var totalImplied = watch.reduce(function (s, r) { return s + r.implied_value_usd; }, 0);
   document.getElementById('stats').innerHTML =
     '<div class="stat"><b>' + rows.length + '</b><span>protocols ranked</span></div>' +
     '<div class="stat"><b>' + compact(watchTvl) + '</b><span>watchlist TVL (40 rows)</span></div>' +
@@ -98,7 +98,7 @@
         '<td class="chains" title="' + esc(chainText(r)) + '">' + esc(chainText(r)) + '</td>' +
         '<td class="num">' + money(r.tvl_usd) + '</td>' +
         '<td class="num ' + cls + '">' + pct(r.change_7d) + '</td>' +
-        '<td class="num imp">' + money(r.implied_mcap_usd) + '</td>' +
+        '<td class="num imp">' + money(r.implied_value_usd) + '</td>' +
         '<td class="num">' + money(r.score) + '</td></tr>';
     }).join('');
   }
@@ -117,21 +117,19 @@
         'tracked since ' + esc(age) + '</p>' +
       '<div class="kv">' +
         '<div><b>' + money(r.tvl_usd) + '</b><span>Total value locked</span></div>' +
-        '<div><b>' + money(r.implied_mcap_usd) + '</b><span>Implied circulating mcap</span></div>' +
+        '<div><b>' + money(r.implied_value_usd) + '</b><span>Implied circulating mcap</span></div>' +
         '<div><b>' + money(range[0]) + ' – ' + money(range[1]) + '</b><span>Implied range (p25–p75 multiple)</span></div>' +
-        '<div><b>' + money(r.score) + '</b><span>Score (rank key)</span></div>' +
+        '<div><b>' + money(r.score) + '</b><span>Score (growth and breadth adjusted)</span></div>' +
         '<div><b>' + r.multiple.toFixed(4) + '×</b><span>Category multiple (mcap/TVL)</span></div>' +
         '<div><b class="' + (r.change_7d === null ? '' : (r.change_7d >= 0 ? 'pos' : 'neg')) + '">' + pct(r.change_7d) + '</b><span>TVL change, 7 days</span></div>' +
         '<div><b>' + growthOf(r).toFixed(4) + '×</b><span>Growth factor</span></div>' +
         '<div><b>' + breadthOf(r).toFixed(2) + '×</b><span>Breadth factor · ' + r.chain_count + ' chain' + (r.chain_count === 1 ? '' : 's') + '</span></div>' +
       '</div>' +
       '<p class="note"><b>Chains:</b> ' + esc(chainText(r)) + '</p>' +
-      '<p class="farm"><b>Farm plan</b>' + esc(r.farm_plan) + '</p>' +
+      '<div class="farm"><b>Farm plan</b><ol>' + r.farm_steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol></div>' +
       '<p class="note">Implied value is a <b>circulating market cap, never FDV</b>. ' +
         'No token exists for this protocol in the snapshot; nothing here claims it will launch one. ' +
-        'Points status is unverified.</p>' +
-      '<p class="note">Look it up: <a href="https://defillama.com/protocol/' + esc(r.slug) + '" target="_blank" rel="noopener">' +
-        'defillama.com/protocol/' + esc(r.slug) + '</a> (link constructed from the public URL pattern, not in the snapshot).</p>';
+        'Points status is unverified.</p>';
     render();
     detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
