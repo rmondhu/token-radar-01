@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Token Launch Radar — 100 no-token protocols ranked by implied value</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">make.fun · token-radar-01 · $1,325 · top 10 share the pot</div>
+    <h1>Token Launch Radar</h1>
+    <p class="sub">100 protocols with no token yet, ranked by implied circulating market cap —
+      TVL × the market's own mcap/TVL multiple for their category. The next launches, watched.</p>
+    <div class="badges">
+      <span class="badge" id="badge-asof">Snapshot 2026-11-14</span>
+      <span class="badge warn">12 days stale at build — not live data</span>
+      <span class="badge">40 watchlist · 60 below the $50M floor</span>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="filters" aria-label="Filters">
+    <input id="q" type="search" placeholder="Search name or slug…" autocomplete="off">
+    <select id="cat" aria-label="Filter by category"><option value="">All categories</option></select>
+    <select id="chain" aria-label="Filter by chain"><option value="">All chains</option></select>
+    <label class="toggle"><input id="watchonly" type="checkbox"> Watchlist only</label>
+    <span class="count" id="count"></span>
+  </section>
+
+  <section class="board">
+    <table id="board">
+      <thead><tr>
+        <th class="num">#</th><th>Protocol</th><th>Category</th><th>Chains</th>
+        <th class="num">TVL</th><th class="num">7d</th>
+        <th class="num">Implied mcap</th><th class="num">Score</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p class="empty" id="empty" hidden>No protocol matches these filters.</p>
+  </section>
+
+  <section class="detail" id="detail" aria-live="polite">
+    <p class="hint">Click any row to open its detail — full fields, implied-value range and farm plan.</p>
+  </section>
+
+  <section class="method">
+    <h2>How the ranking works</h2>
+    <p><strong>Implied value = TVL × category multiple.</strong> The multiple is the median
+    mcap/TVL of token-bearing protocols in the same category (128 comparables with a positive
+    circulating mcap). Categories with fewer than 5 comparables use the fallback multiple
+    <strong>0.082</strong> — the median of the 52 comparables with TVL ≥ $50M. The score then
+    adjusts for 7-day TVL momentum (clamped −50%…+100%) and chain breadth (up to +20% for 10+
+    chains). Implied value is a <strong>circulating market cap, never FDV</strong> — the snapshot
+    has no supply data.</p>
+    <p><strong>What the board is:</strong> the 40-protocol watchlist taken verbatim from the
+    snapshot (it cannot be recomputed — 20 child products are excluded only via data not in the
+    file), plus the next 60 no-token protocols below the $50M floor by TVL. A protocol being
+    here is <strong>not</strong> a claim it will launch a token — the snapshot contains no launch
+    signal at all. Several rows are vault/curator businesses, stablecoins, chains or networks
+    that may never issue a token.</p>
+    <p><strong>Farm plans</strong> are category-generic (chains + action family + age/TVL/momentum
+    context). <strong>Points status is unverified for every row</strong> — the snapshot never says
+    whether a protocol has a points program. Protocol links use DefiLlama's public URL pattern
+    (<code>defillama.com/protocol/&lt;slug&gt;</code>), constructed, not from the snapshot.</p>
+    <p class="src">Source: DefiLlama <code>api.llama.fi/protocols</code>, fetched 2026-11-14T01:18:33Z.
+    758 protocols in file; median 7d change −8.23% — a down week, so a negative 7d is the market,
+    not the protocol. Built offline from the sealed snapshot; no live prices.</p>
+  </section>
+</main>
+
+<footer class="wrap foot">Token Launch Radar · token-radar-01 · data as of 2026-11-14 · built with the
+make.fun dashboard-dossier kit · <a href="https://make.fun/">make.fun</a></footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
